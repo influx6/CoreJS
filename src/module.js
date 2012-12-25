@@ -2,11 +2,14 @@ var module = module || {};
 (function(name,fn){
   if(!module['exports']) module.exports = {};
   module.exports[name] = fn;
-})('Core',function(global,callback){
+})('Core',function(global){
 
-	global.ToolStack.load(['Class','ToolChain'],function(ts){
 
-		var Module = ts.Class.create('Module',{
+		var ts = global.ToolStack, Module;
+
+		global.ExtInit(ts);
+		
+		Module = ts.Class.create('Module',{
 				init: function(wo,channel,id,modules){
 					this.id = id || "PROCESS_ID";
 					this.modules = modules;
@@ -50,10 +53,9 @@ var module = module || {};
 
 
 		var ns = ts.ns('Core.Module',Module,global);
-		if(callback) callback(global);
 		if(typeof module !== 'undefined' && typeof require !== 'undefined'){
 			module.exports = ns;
 		} 	
-	});
+
 });
 
