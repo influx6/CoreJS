@@ -1,13 +1,12 @@
 var module = module || {};
 (function(name,fn){
   if(!module['exports']) module.exports = {};
-  module.exports[name] = fn(module.exports);
-})('Core',function(global){
+  module.exports[name] = fn;
+})('ServerModule',function(core,toolstack){
 
-	var _execPath =  "",
-		utility = global.ToolStack.ToolChain;
+	var utility = toolstack.ToolChain;
 
-	var ServerModule = global.Core.Module.extend('ServerModule',{
+	core.Modules.ServerModule = core.Module.extend('ServerModule',{
 
 		init: function(wo,channel,id,modules){
 			this.Super(wo,channel,id,modules);
@@ -23,7 +22,7 @@ var module = module || {};
 		},
 
 		default: function(wo){
-			this.wo = http.createServer();
+			this.wo = require('http').createServer();
 		},
 
 		connect: function(port,ip,callback){
@@ -47,12 +46,7 @@ var module = module || {};
 		}
 	});
 
-	var ns = ts.ns('Modules.ServerModule',ServerModule,global.Core);
-	if(typeof module !== 'undefined' && typeof require !== 'undefined'){
-		module.exports = ns;
-	};
 
-	return ns;
 });
 
 

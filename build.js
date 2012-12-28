@@ -5,5 +5,5 @@ js.compile({
 	src_dir:"./src",
 	name:"core.js",
 	uglify: true,
-	src:['core.js','coremodule.js','coremessage.js','coreinit.js']
+	src:['core.js']
 });

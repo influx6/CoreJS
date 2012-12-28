@@ -5,17 +5,33 @@ var module = module || {};
 })('Core',function(global){
 
 
-		var Core = {},Module,ts = global.ToolStack,utility;
-		// global.ExtInit(ts);
+		var Core = {},Module,ts = global.ToolStack,
 		utility = ts.ToolChain;
 
-		Core.Core = ts.Events();
-		Module = ts.Class.create('Module',{
-				init: function(wo,channel,id,modules){
+		Core.Sandbox = function(){
+			var box = function(){};
+			box.fn = box.prototype;
+
+			box.fn.moduleDir = "./modules";
+			box.fn.register = function(name,module,permission){};
+			box.fn.request = function(name,message){};
+			box.fn.unregister = function(name);
+			box.fn.require = function(name){
+
+				
+			}
+
+			return new box;
+		};
+
+		Core.Modules = {};
+
+		Core.Module = ts.Class.create('Module',{
+				init: function(wo,id,modules){
 					this.id = id || "PROCESS_ID";
 					this.modules = modules;
-					this.execPath = _execPath; 
 					this.events = ts.Events();
+					this.channel = Core.Sandbox;
 
 					//setiing up all relevant events
 					this.events.set('connecting');
@@ -52,9 +68,7 @@ var module = module || {};
 
 		});
 
-		var ns = ts.ns('Core',Core,global);
-		if(typeof module !== 'undefined' && typeof require !== 'undefined'){
-			module.exports = ns;
-		} 
+
+		global.Core = Core;
 
 });

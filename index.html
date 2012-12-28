@@ -2,7 +2,17 @@
 	<head>
 		<script type="text/javascript" src="./exts/toolstack.js"></script>
 		<script type="text/javascript" src="./exts/loader.js"></script>
+		<script type="text/javascript" src="./src/core.js"></script>
+		<script type="text/javascript">
+			var ext = module.exports;
+			//execute needed extensions
+			ext.ExtInit(ext);
 
+		    // ext.ToolStack.Console.init('console');
+		    // Console = ext.ToolStack.Console;
+
+			ext.Core(ext);
+		</script>	
 	</head>
 	<body>
 	<div class="wrapper" id="top">
@@ -21,24 +31,5 @@
 		<section id="console"></section>
 	</div>	
 	</body>
-	<script type="text/javascript">
-			var ext = module.exports;
-			//execute needed extensions
-			ext.ExtInit(ext);
 
-		    // ext.ToolStack.Console.init('console');
-		    // Console = ext.ToolStack.Console;
-
-			//startup 
-			ext.Loader(module.exports,function(global){
-
-				var loader = global.Loader;
-				loader.script('./src/core.js','./src/coremodule.js',
-					'./src/coremessage.js','./src/coreinit.js',function(){
-						ext.CoreInit(ext);
-					});
-		    });
-
-
-		</script>	
 </html>

@@ -1,16 +1,23 @@
-var _g = require('global'), mod;
-_g.toolstack.load(['class','toolchain','callbacks','events']);
+var global = require('../exts/toolstack'),
+	http = require('http'),
+	url = require('url'),
+	modules,Core;
 
-mod = _g.root('module')(_g.toolstack,_g.http);
+	global.ExtInit(global);
+	require('../src/core').Core(global);
+	require('../modules/server.js').ServerModule(global.Core,global.ToolStack);
+
+	Core = global.Core;
+	modules = Core.Modules;
 
 
-mod.ServerModule.make('./tests/server_one.js',null,null,_g.http).connect(8000);
+modules.ServerModule.make(__dirname+'/server_one.js',null,null,http).connect(8000);
 
-mod.ServerModule.make(function(http){
+modules.ServerModule.make(function(http){
 	return http.createServer();
-},null,null,_g.http).use(function(server){
+},null,null,http).use(function(server){
 	server.on('request',function(req,res){
-		var path = _g.url.parse(req.url);
+		var path = url.parse(req.url);
 		if(path.pathname === '/slushers'){
 			console.log("Making request to slushers");
 			res.writeHead(200,{'Content-Type':'text/plain'});
@@ -20,9 +27,9 @@ mod.ServerModule.make(function(http){
 	});
 }).connect(8001,'127.0.0.1',function(){ console.log('got connected')});
 
-mod.ServerModule.make(':default',null,null).use(function(server){
+modules.ServerModule.make(':default',null,null).use(function(server){
 	server.on('request',function(req,res){
-		var path = _g.url.parse(req.url);
+		var path = url.parse(req.url);
 		if(path.pathname === '/bugger'){
 			console.log("Making request to bugger");
 			res.writeHead(200,{'Content-Type':'text/plain'});
