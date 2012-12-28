@@ -2,14 +2,11 @@ var module = module || {};
 (function(name,fn){
   if(!module['exports']) module.exports = {};
   module.exports[name] = fn;
-})('Core',function(global){
+})('CoreModule',function(global){
 
 
-		var Core = {},Module,ts = global.ToolStack,utility;
-		// global.ExtInit(ts);
-		utility = ts.ToolChain;
-
-		Core.Core = ts.Events();
+		var ts = global.ToolStack, Module;
+		
 		Module = ts.Class.create('Module',{
 				init: function(wo,channel,id,modules){
 					this.id = id || "PROCESS_ID";
@@ -52,9 +49,10 @@ var module = module || {};
 
 		});
 
-		var ns = ts.ns('Core',Core,global);
+
+		var ns = ts.ns('Core.Module',Module,global);
 		if(typeof module !== 'undefined' && typeof require !== 'undefined'){
 			module.exports = ns;
-		} 
-
+		} 	
 });
+

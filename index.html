@@ -1,12 +1,12 @@
 <html>
 	<head>
-		<script type="text/javascript" src="../toolstack/toolstack.js"></script>
-		<script type="text/javascript" src="./src/core.js"></script>
-		<script type="text/javascript" src="./src/module.js"></script>
+		<script type="text/javascript" src="./exts/toolstack.js"></script>
+		<script type="text/javascript" src="./exts/loader.js"></script>
+
 	</head>
 	<body>
 	<div class="wrapper" id="top">
-				<section id="logo_menu">
+		<section id="logo_menu">
 					<h1><a href="/">Core.js!</a></h1>
 					<nav>
 					 	<ul>
@@ -17,7 +17,28 @@
 					 	</ul>
 					</nav>
 					<h4><span><a href="http://github.com/influx6/AppStack">Fork@Github</a></span></h4>
-				</section>
+		</section>
+		<section id="console"></section>
 	</div>	
 	</body>
+	<script type="text/javascript">
+			var ext = module.exports;
+			//execute needed extensions
+			ext.ExtInit(ext);
+
+		    // ext.ToolStack.Console.init('console');
+		    // Console = ext.ToolStack.Console;
+
+			//startup 
+			ext.Loader(module.exports,function(global){
+
+				var loader = global.Loader;
+				loader.script('./src/core.js','./src/coremodule.js',
+					'./src/coremessage.js','./src/coreinit.js',function(){
+						ext.CoreInit(ext);
+					});
+		    });
+
+
+		</script>	
 </html>

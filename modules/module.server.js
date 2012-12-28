@@ -1,18 +1,13 @@
-
+var module = module || {};
 (function(name,fn){
-	var ns = name.split('.'),root;
-	if(ns.length > 1){
-		
-	}
-	if(typeof define === 'function') define(fn);
-	else if(typeof module !== 'undefined') module.exports = fn;
-	else this[name] = fn;
-})('Core.Modules.ServerModule',function(ts){
+  if(!module['exports']) module.exports = {};
+  module.exports[name] = fn(module.exports);
+})('Core',function(global){
 
-	var _execPath = process.execPath,
-		utility = ts.ToolChain;
+	var _execPath =  "",
+		utility = global.ToolStack.ToolChain;
 
-	return ServerModule = Modules.Module.extend('ServerModule',{
+	var ServerModule = global.Core.Module.extend('ServerModule',{
 
 		init: function(wo,channel,id,modules){
 			this.Super(wo,channel,id,modules);
@@ -52,7 +47,12 @@
 		}
 	});
 
-	return Modules;
+	var ns = ts.ns('Modules.ServerModule',ServerModule,global.Core);
+	if(typeof module !== 'undefined' && typeof require !== 'undefined'){
+		module.exports = ns;
+	};
+
+	return ns;
 });
 
 
