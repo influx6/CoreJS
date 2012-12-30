@@ -2,17 +2,8 @@
 	<head>
 		<script type="text/javascript" src="./exts/toolstack.js"></script>
 		<script type="text/javascript" src="./exts/loader.js"></script>
-		<script type="text/javascript" src="./src/core.js"></script>
-		<script type="text/javascript">
-			var ext = module.exports;
-			//execute needed extensions
-			ext.ExtInit(ext);
-
-		    // ext.ToolStack.Console.init('console');
-		    // Console = ext.ToolStack.Console;
-
-			ext.Core(ext);
-		</script>	
+		<link rel="stylesheet" type="text/css" href="./assets/css/reset.css" />
+		<link rel="stylesheet" type="text/css" href="./assets/css/main.css" />
 	</head>
 	<body>
 	<div class="wrapper" id="top">
@@ -28,8 +19,12 @@
 					</nav>
 					<h4><span><a href="http://github.com/influx6/AppStack">Fork@Github</a></span></h4>
 		</section>
-		<section id="console"></section>
-	</div>	
+		<section id="console">
+				<h3>DOM:Console</h3>
+		</section>	</div>	
 	</body>
-
+	<script type="text/javascript">
+		var ext = module.exports,ts,jaz,matchers;
+			ext.ExtInit(ext);
+	</script>	
 </html>

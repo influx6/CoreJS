@@ -1,0 +1,10 @@
+var global = require('global'),
+	specs = global.specs.jaz,
+	utility = global.toolstack.ToolChain,
+	matchers = global.toolstack.Matchers.use,
+	jaz = global.toolstack.Jaz;
+
+utility.eachSync(specs,function(e,i,o,fn){
+	e(global.core,jaz,matchers);
+	fn(false);
+});

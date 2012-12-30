@@ -1,1 +1,1 @@
-/Users/punchbox/Projects/Me/toolstack/builds/toolstack.full.js
+/Users/punchbox/Projects/Me/toolstack/builds/toolstack.js

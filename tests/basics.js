@@ -1,21 +1,21 @@
-var global = require('../exts/toolstack'),
+var toolstack = require('../exts/toolstack'),
 	http = require('http'),
+	path = require('path'),
 	url = require('url'),
-	modules,Core;
+	core = null, modules = null;
 
-	global.ExtInit(global);
-	require('../src/core').Core(global);
-	require('../modules/server.js').ServerModule(global.Core,global.ToolStack);
+	toolstack = toolstack.ExtInit(toolstack);
+	core = require('../src/core')(toolstack,path);
+	
+	require('../modules/server.js')({ core: core, toolstack: toolstack});
 
-	Core = global.Core;
-	modules = Core.Modules;
-
+ 	modules = core.Modules;
 
 modules.ServerModule.make(__dirname+'/server_one.js',null,null,http).connect(8000);
 
 modules.ServerModule.make(function(http){
 	return http.createServer();
-},null,null,http).use(function(server){
+},null,null,http).router(function(server){
 	server.on('request',function(req,res){
 		var path = url.parse(req.url);
 		if(path.pathname === '/slushers'){
@@ -27,7 +27,7 @@ modules.ServerModule.make(function(http){
 	});
 }).connect(8001,'127.0.0.1',function(){ console.log('got connected')});
 
-modules.ServerModule.make(':default',null,null).use(function(server){
+modules.ServerModule.make(':default',null,null).router(function(server){
 	server.on('request',function(req,res){
 		var path = url.parse(req.url);
 		if(path.pathname === '/bugger'){

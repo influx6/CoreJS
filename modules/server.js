@@ -1,12 +1,6 @@
-var module = module || {};
-(function(name,fn){
-  if(!module['exports']) module.exports = {};
-  module.exports[name] = fn;
-})('ServerModule',function(core,toolstack){
+module.exports = (function(core,utility){
 
-	var utility = toolstack.ToolChain;
-
-	core.Modules.ServerModule = core.Module.extend('ServerModule',{
+	var Server = core.Module.extend('ServerModule',{
 
 		init: function(wo,channel,id,modules){
 			this.Super(wo,channel,id,modules);
@@ -16,7 +10,7 @@ var module = module || {};
 			}
 		},
 
-		use: function(fn){
+		router: function(fn){
 			fn.call(this,this.wo);
 			return this;
 		},
@@ -46,7 +40,6 @@ var module = module || {};
 		}
 	});
 
+	core.Modules.ServerModule = Server;
 
 });
-
-
