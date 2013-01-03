@@ -1,13 +1,13 @@
-var toolstack = require('../exts/toolstack'),
+var toolstack = require('../exts/toolstack').ToolStack,
 	http = require('http'),
 	path = require('path'),
+	domain = require('domain'),
 	url = require('url'),
 	core = null, modules = null;
 
-	toolstack = toolstack.ExtInit(toolstack);
-	core = require('../src/core')(toolstack,path);
+	core = require('../src/core').Core(toolstack);
 	
-	require('../modules/server.js')({ core: core, toolstack: toolstack});
+	require('../modules/server/module.server.js')(core,toolstack.Utility,domain);
 
  	modules = core.Modules;
 
