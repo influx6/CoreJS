@@ -1,13 +1,24 @@
 var module = module || { exports: {} };
 
-(function(mod){
+module.exports = (function(ts,core){
 	
-	exports.Extinit(exports.ToolStack);
 
-	var ts = exports.ToolStack,
-			jaz = ts.Jaz, m = ts.Matchers.use, spec = {};
+	var jaz = ts.Jaz, m = ts.Matchers, spec = {}, Core = core;
 
 	spec.sandbox = jaz.create("Unit Testing Core.Sandbox",function(){
+
+		var core = Core.Sandbox();
+
+
+		this.it('should be able to create a core instance',function(){
+			m(this).obj(core).isInstanceOf(Core);
+		});
+
+		this.it('should have a facade object',function(){
+			m(this).obj(core).hasKey('facade');
+			m(this).obj(core).hasKeyForm('facade','object');
+		});
+
 
 
 	});
@@ -17,6 +28,6 @@ var module = module || { exports: {} };
 
 	});
 
-	mod.exports.corejaz = spec;
+	return spec;
 
-})(module);
+});
