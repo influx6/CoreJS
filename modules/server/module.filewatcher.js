@@ -1,21 +1,22 @@
 module.exports = (function(core,utility){
 
-	var utility = utility, core = core;
+    var utility = utility, core = core;
 
-	core.Modules.FileWatcherModule = core.Module.extend("FileWatcherModule",{
-		
-		init: function(channel,id,modules){
-			this.Super(":default",channel,id,modules);
-			this.watches = {};
-		},
+    core.Modules.FileWatcherModule = core.Module.extend("FileWatcherModule",{
+            
+      init: function(modules,channel){
+        this.Super(":default",modules,channel);
+        this.watches = {};
+      },
 
-		default: function(){},
+      default: function(){},
 
-		watch: function(path){
-			console.log(path);
-		}
-	});
+      watch: function(path){
+      },
 
+      cycle: function(ms){},
+            
+    });
 
 });
 
