@@ -2,135 +2,181 @@ var module = module || { exports: {} };
 
 module.exports.Core = (function(toolstack){
 		
-		var Core = {},
-		//path = mod.path,
-		ts = toolstack,
-		utility = ts.Utility;
+    var Core = {},appr = /^app:/,
+    //path = mod.path,
+    ts = toolstack,
+    helpers = toolstack.Helpers,
+    utility = ts.Utility;
 
-		module.exports.Core = Core;
+    module.exports.Core = Core;
 
-		Core.gpid = utility.guid();
-		Core.moduleDir = "./modules/";
-		Core.appDir = "./apps/";
+    Core.gpid = utility.guid();
+    Core.moduleDir = "./modules/";
+    Core.appDir = "./apps/";
 
-		Core.Sandbox = function(moduledir,appdir){
-			var box = function(){
-				this.apps = {};
-				this.loaded = {};
-				this.gpid = Core.gpid;
-				this.pid = utility.guid();
+    Core.Sandbox = function(moduledir,appdir){
+            var box = function(){
+                    this.apps = {};
+                    this.loaded = {};
+                    this.gpid = Core.gpid;
+                    this.pid = utility.guid();
 
-				Core.Facade(this);
-			};
+                    Core.Facade(this);
+            };
 
-			box.fn = box.prototype;
-			box.fn.channels = toolstack.Events();
-			box.fn.moduleDir = moduledir || Core.moduledir;
-			box.fn.appDir = appdir || Core.appDir;
+            box.fn = box.prototype;
+            box.fn.channels = toolstack.MessageAPI();
+            box.fn.events = ToolStack.Events();
+            box.fn.moduleDir = moduledir || Core.moduledir;
+            box.fn.appDir = appdir || Core.appDir;
 
 
-			box.fn.registerApp = function(app,config,permissions){
-				if(!utility.isString(config.name) || this.apps[config.name]) return false;
-				this.apps[config.name] = { 
-					root: Core.appDir.concat(config.name),
-					config: config,
-					permissions: permissions || {},
-					app: app,
-					registered: true
-				};
-				// app.channel =
-				this.channels.set('app:'.concat(config.channel));
-			};
+            box.fn.registerApp = function(app,config,permissions){
+                    if(!utility.isString(config.name) || this.apps[config.name]) return false;
+                    
+                    var name;
+                    if(appr.test(config.name)) name = config.name;
+                    else name = 'app:'.concat(config.name);
 
-			box.fn.unregisterApp = function(name){
-				if(!utility.isString(name) || !this.apps[name]) return false;
-				var app,self = this;
-				delete this.apps[name];
-				var app = this.loaded[name];
-				if(app) app.stop();
-				delete app;
-			};
+                    this.apps[name] = config;
 
-			box.fn.start = function(){
+                    var key = apps[name];
+                    key.id = util.guid();
+                    key.root = Core.appDir.concat(config.name);
+                    key.permissions = permissions || {};
+                    key.app = app;
+                    key.channel = name;
+                    key.registered = true; 
 
-			};
+                    this.channels.addChannel(name);
+          };
 
-			box.fn.stop = function(){
+          box.fn.unregisterApp = function(name){
+                  if(!utility.isString(name) || !this.apps[name]) return false;
+                  var app,self = this;
+                  delete this.apps[name];
+                  var app = this.loaded[name];
+                  if(app) app.stop();
+                  delete app;
+          };
 
-			};
+          box.fn.startAll = function(){};
+          box.fn.stopAll = function(){};
 
-			return new box;
-		};
+          box.fn.startApp = function(){
 
-		//provides a nice facaded for access by modules and apps
-		Core.Facade = function(core){
-			if(!core || !core.gpid || (core.gpid !== Core.gpid) || (core.facade && core.facade.isCreated)) return false;
-			var facade = {};
-			utility.createProperty(facade,'isCreated',{
-				get: function(){ return true },
-				set: function(val){ }
-			});
+          };
 
-			facade.on = utility.proxy(core.channels.on,core.channels);
-			facade.off = utility.proxy(core.channels.off,core.channels);
-			facade.modules = function(){ return Core.Modules; };
+          box.fn.stopApp = function(){
 
-			core.facade = facade;
-			return true;
+          };
 
-		};
-		
-		Core.Modules = {};
-		Core.Module = ts.Class.create('Module',{
-				init: function(wo,id,modules){
-					this.id = id || "PROCESS_ID";
-					this.modules = modules;
-					this.events = ts.Events();
-					// this.channel = channel;
+          return new box;
+      };
 
-					//setiing up all relevant events
-					this.events.set('connecting');
-					this.events.set('connected');
-					this.events.set('disconnecting');
-					this.events.set('disconnected');
+      //provides a nice facaded for access by modules and apps
+      Core.Facade = function(core){
+        if(!core || !core.gpid || (core.gpid !== Core.gpid) || (core.facade && core.facade.isCreated)) return false;
 
-					//setup the events aliases
-					this.on = utility.proxy(this.events.on,this.events);
-					this.off = utility.proxy(this.events.off,this.events);
+        var facade = {};
+        utility.createProperty(facade,'isCreated',{
+                get: function(){ return true },
+                set: function(val){ }
+        });
 
-					//set of middleware to passon data too on requests;
-		 			// this.middleware = [];
+        facade.on = utility.proxy(core.channels.on,core.channels);
+        facade.off = utility.proxy(core.channels.off,core.channels);
+        facade.modules = function(){ return Core.Modules; };
+        facade.notify = function(caller,channel,command,data){
+            //verify if it begins with 'app:'
+            var orgcaller = caller, orgchannel = channel;
 
-					if(utility.isString(wo) && wo === ':default'){
-						this.default(wo); return;
-					}
-					if(utility.isString(wo)){ this.wo = require(wo); return; }
-					if(utility.isFunction(wo)){ this.wo = wo; return; }
+            if(!appr.test(caller)) caller = 'app:'.concat(caller);
+            if(!appr.test(channel)) channel = 'app:'.concat(channel);
 
-					return;
+            //verify if channel does exists;
+            if(!helpers.hashmaps.exists.call(core.apps,channel)) return false;
+            if(!helpers.hashmaps.exists.call(core.apps,caller)) return false;
+            
+            var initor = helpers.hashmaps.find.call(core.apps,caller);
 
-				},
+            if(!(initor.permissions['*all'] && initor.permissions['*all'][command]) &&
+            !(initor.permissions[orgchannel] && initor.permissions[orgchannel][command])) return false;
 
-				channel: function(channel){
-					this.channel = channel;
-					return this;
-				},
+            var dest = helpers.hashmaps.find.call(core.apps,channel);
+            dest.command(command,data);
 
-				domain: function(){
-					//returns a Domain or object that handles errors based on the context,
-				},
+        };
 
-				default: function(wo){},
+        core.facade = facade;
+        return true;
 
-				send: function(message){},
+      };
+      
+      Core.Modules = {};
+      Core.Module = ts.Class.create('Module',{
+          init: function(wo,modules,channel){
+                    this.modules = modules;
+                    this.events = ts.Events();
+                    this.messages = ts.MessageAPI();
+                    this.channel = channel;
+                    this.commands = {};
 
-				start: function(){ },
+                    //setiing up all relevant events
+                    this.events.set('bootup');
+                    this.events.set('restart');
+                    this.events.set('shutdown');
 
-				stop: function(){ },
+                    //setup the events aliases
+                    this.on = utility.proxy(this.events.on,this.events);
+                    this.off = utility.proxy(this.events.off,this.events);
 
-				attach:function(plugin){}
-		});
+                    //set of middleware to passon data too on requests;
+                    // this.middleware = [];
 
-		return Core;
+                        if(utility.isString(wo) && wo === ':default'){
+                                this.default(wo); return;
+                        }
+                        if(utility.isString(wo)){ this.wo = require(wo); return; }
+                        if(utility.isFunction(wo)){ this.wo = wo; return; }
+
+                        return;
+
+                },
+
+                
+                channel: function(channel){
+                        this.channel = channel;
+                        return this;
+                },
+
+                domain: function(){
+                        //returns a Domain or object that handles errors based on the context,
+                },
+
+                expose: function(key,command){
+                    if(this.exposables[key]) return false;
+                    this.exposables[key] = command;
+                },
+
+                command: function(ḱey,data){
+                   if(!this.commands[key]) return false;
+                   return this.commands[key].apply(this,data);
+                },
+
+                default: function(wo){},
+
+                send: function(message){},
+
+                bootup: function(){ },
+                
+                reboot: function(){ },
+
+                shutdown: function(){ },
+
+                attach:function(plugin){}
+            });
+
+            return Core;
 });
 

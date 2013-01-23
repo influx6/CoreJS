@@ -1,6 +1,7 @@
-module.exports = (function(core,utility,debug,domain){
-
-  var Server = core.Module.extend('ServerModule',{
+module.exports = (function(core,ts,debug){
+  
+  var utility = ts.Utility,
+  Server = core.Module.extend('ServerModule',{
 
           init: function(wo,modules,channel){
             this.Super(wo,modules,channel);

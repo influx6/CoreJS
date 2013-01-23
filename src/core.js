@@ -47,8 +47,23 @@ module.exports.Core = (function(toolstack){
                     key.app = app;
                     key.channel = name;
                     key.registered = true; 
-
                     this.channels.addChannel(name);
+
+                    this.channels.getChannel(name).add('bootup',function(){
+                        key.app.bootup.apply(key.app,arguments);
+                    });
+
+                    this.channels.getChannel(name).add('reboot',function(){
+                        key.app.reboot.apply(key.app,arguments);
+                    });
+
+                    this.channels.getChannel(name).add('shutdown',function(){
+                        key.app.shutdown.apply(key.app,arguments);
+                    });
+
+                    if(config.setup && util.isFunction(config.setup))  config.setup(app,box.facade);
+                    
+                    return true;
           };
 
           box.fn.unregisterApp = function(name){
@@ -87,6 +102,13 @@ module.exports.Core = (function(toolstack){
         facade.on = utility.proxy(core.channels.on,core.channels);
         facade.off = utility.proxy(core.channels.off,core.channels);
         facade.modules = function(){ return Core.Modules; };
+        facade.channel = function(channel){
+            var c =  core.channels.getChannel(channel);
+            return {
+                add: function(item,value){ return c.add(item,value); }
+            };
+        };
+
         facade.notify = function(caller,channel,command,data){
             //verify if it begins with 'app:'
             var orgcaller = caller, orgchannel = channel;
@@ -119,12 +141,12 @@ module.exports.Core = (function(toolstack){
                     this.modules = modules;
                     this.events = ts.Events();
                     this.messages = ts.MessageAPI();
-                    this.channel = channel;
                     this.commands = {};
-
+                    
+                    if(channel) this.channel(channel);
                     //setiing up all relevant events
                     this.events.set('bootup');
-                    this.events.set('restart');
+                    this.events.set('reboot');
                     this.events.set('shutdown');
 
                     //setup the events aliases

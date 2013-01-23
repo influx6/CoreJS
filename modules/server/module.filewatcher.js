@@ -1,20 +1,23 @@
-module.exports = (function(core,utility){
+module.exports = (function(core,ts){
 
-    var utility = utility, core = core;
+    var utility = ts.Utility, core = core;
 
     core.Modules.FileWatcherModule = core.Module.extend("FileWatcherModule",{
             
       init: function(modules,channel){
         this.Super(":default",modules,channel);
-        this.watches = {};
+        this.watchables = {};
       },
 
       default: function(){},
 
-      watch: function(path){
+      watch: function(title,path){
+          
       },
 
-      cycle: function(ms){},
+      cycle: function(ms){
+      
+      },
             
     });
 
