@@ -16,48 +16,83 @@ module.exports.Core = (function(toolstack){
 
     Core.Sandbox = function(moduledir,appdir){
             var box = function(){
-                    this.apps = {};
-                    this.loaded = {};
-                    this.gpid = Core.gpid;
-                    this.pid = utility.guid();
+              this.apps = {};
+              this.loaded = {};
+              this.gpid = Core.gpid;
+              this.pid = utility.guid();
 
-                    Core.Facade(this);
+              Core.Facade(this);
             };
 
             box.fn = box.prototype;
+
             box.fn.channels = toolstack.MessageAPI();
             box.fn.events = ToolStack.Events();
+          
             box.fn.moduleDir = moduledir || Core.moduledir;
             box.fn.appDir = appdir || Core.appDir;
 
-
             box.fn.registerApp = function(app,config,permissions){
-                    if(!utility.isString(config.name) || this.apps[config.name]) return false;
-                    
-                    var name;
-                    if(appr.test(config.name)) name = config.name;
-                    else name = 'app:'.concat(config.name);
+              if(!util.isFunction(app)) throw new Error("Your App must be a function to be called!");
+              if(!utility.isString(config.name) || this.apps[config.name]) return false;
+              
+              var name,appd;
+              if(appr.test(config.name)) name = config.name;
+              else name = 'app:'.concat(config.name);
 
-                    this.apps[name] = config;
+              this.apps[name] = config;
+              
+              //initialize the app with arguments supplied and check for proper methods
+              try{
 
-                    var key = apps[name];
-                    key.id = util.guid();
-                    key.root = Core.appDir.concat(config.name);
-                    key.permissions = permissions || {};
-                    key.app = app;
-                    key.channel = name;
-                    key.registered = true; 
+                appd = app.apply(null,config.args || []);
 
-                    this.channels.addChannel(name);
+                var key = apps[name];
+                key.name = config.name;
+                key.channel = name;
+                key.id = util.guid();
+
+                this.channels.addChannel(name);
+                key.app = appd(this.channels.getChannel(key.channel),this.facade);
+                
+                //test the app if 
+                var test = this.channels.getChanngel(name);
+                if(!test.exists('bootup') || !test.exists('reboot') || !test.exists('shutdown')) throw new Error("Invalid App!");
+
+                //setup permissions,directory and set app as registed
+                key.root = Core.appDir.concat(config.name);
+                key.permissions = permissions || {};
+                key.registered = true; 
+
+                // this.channels.getChannel(key.channel).add('bootup',function(){
+                //     key.app.bootup.apply(key.app,arguments);
+                // });
+                // this.channels.getChannel(key.channel).add('reboot',function(){
+                //     key.app.reboot.apply(key.app,arguments);
+                // });
+                // this.channels.getChannel(key.channel).add('shutdown',function(){
+                //     key.app.shutdown.apply(key.app,arguments);
+                // });
+
+                if(config.setup && util.isFunction(config.setup))  config.setup(key.app,box.facade);
+
+              }catch(e){
+                 e.message = "App does not confirm to core specification, please review \n" + e.message;
+                 throw e;
+                 return false;
+              };
+              
+              
+              return true;
           };
 
           box.fn.unregisterApp = function(name){
-                  if(!utility.isString(name) || !this.apps[name]) return false;
-                  var app,self = this;
-                  delete this.apps[name];
-                  var app = this.loaded[name];
-                  if(app) app.stop();
-                  delete app;
+            if(!utility.isString(name) || !this.apps[name]) return false;
+            var app,self = this;
+            delete this.apps[name];
+            var app = this.loaded[name];
+            if(app) app.stop();
+            delete app;
           };
 
           box.fn.startAll = function(){};
@@ -87,6 +122,8 @@ module.exports.Core = (function(toolstack){
         facade.on = utility.proxy(core.channels.on,core.channels);
         facade.off = utility.proxy(core.channels.off,core.channels);
         facade.modules = function(){ return Core.Modules; };
+        facade.channel = core.channels;
+
         facade.notify = function(caller,channel,command,data){
             //verify if it begins with 'app:'
             var orgcaller = caller, orgchannel = channel;
@@ -94,17 +131,17 @@ module.exports.Core = (function(toolstack){
             if(!appr.test(caller)) caller = 'app:'.concat(caller);
             if(!appr.test(channel)) channel = 'app:'.concat(channel);
 
-            //verify if channel does exists;
-            if(!helpers.hashmaps.exists.call(core.apps,channel)) return false;
-            if(!helpers.hashmaps.exists.call(core.apps,caller)) return false;
-            
-            var initor = helpers.hashmaps.find.call(core.apps,caller);
+            // //verify if channel does exists;
+            // if(!helpers.hashmaps.exists.call(core.apps,channel)) return false;
+            // if(!helpers.hashmaps.exists.call(core.apps,caller)) return false;
+            // 
+            // var initor = helpers.hashmaps.find.call(core.apps,caller);
 
-            if(!(initor.permissions['*all'] && initor.permissions['*all'][command]) &&
-            !(initor.permissions[orgchannel] && initor.permissions[orgchannel][command])) return false;
+            // if(!(initor.permissions['*all'] && initor.permissions['*all'][command]) &&
+            // !(initor.permissions[orgchannel] && initor.permissions[orgchannel][command])) return false;
 
-            var dest = helpers.hashmaps.find.call(core.apps,channel);
-            dest.command(command,data);
+            // var dest = helpers.hashmaps.find.call(core.apps,channel);
+            // dest.command(command,data);
 
         };
 
@@ -113,70 +150,8 @@ module.exports.Core = (function(toolstack){
 
       };
       
-      Core.Modules = {};
-      Core.Module = ts.Class.create('Module',{
-          init: function(wo,modules,channel){
-                    this.modules = modules;
-                    this.events = ts.Events();
-                    this.messages = ts.MessageAPI();
-                    this.channel = channel;
-                    this.commands = {};
+     Core.Modules = {};
 
-                    //setiing up all relevant events
-                    this.events.set('bootup');
-                    this.events.set('restart');
-                    this.events.set('shutdown');
-
-                    //setup the events aliases
-                    this.on = utility.proxy(this.events.on,this.events);
-                    this.off = utility.proxy(this.events.off,this.events);
-
-                    //set of middleware to passon data too on requests;
-                    // this.middleware = [];
-
-                        if(utility.isString(wo) && wo === ':default'){
-                                this.default(wo); return;
-                        }
-                        if(utility.isString(wo)){ this.wo = require(wo); return; }
-                        if(utility.isFunction(wo)){ this.wo = wo; return; }
-
-                        return;
-
-                },
-
-                
-                channel: function(channel){
-                        this.channel = channel;
-                        return this;
-                },
-
-                domain: function(){
-                        //returns a Domain or object that handles errors based on the context,
-                },
-
-                expose: function(key,command){
-                    if(this.exposables[key]) return false;
-                    this.exposables[key] = command;
-                },
-
-                command: function(ḱey,data){
-                   if(!this.commands[key]) return false;
-                   return this.commands[key].apply(this,data);
-                },
-
-                default: function(wo){},
-
-                send: function(message){},
-
-                bootup: function(){ },
-                
-                reboot: function(){ },
-
-                shutdown: function(){ },
-
-                attach:function(plugin){}
-            });
-
-            return Core;
+     return Core;
 });
 

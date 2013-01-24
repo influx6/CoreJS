@@ -1,4 +1,14 @@
 module.exports = (function(core,ts){
+
+    var utility = ts.Utility;
+    
+    core.Modules.FileWatcher = function FileWatcherSetup(){
+      return function FileWatcher(channel,facade){};
+    };
+
+});
+
+module.exports = (function(core,ts){
   
   var utility = ts.Utility, http = require('http');
   
@@ -6,8 +16,10 @@ module.exports = (function(core,ts){
 
      return function HttpServer(channel,facade){
         
-        var app = Core.createAppShell(channel,facade);
-        app.server = http.createServer();
+        var app = {
+          server : http.createServer(),
+          channel : channel
+        };
 
         app.router = function(fn){
             var self = this;
@@ -15,7 +27,7 @@ module.exports = (function(core,ts){
             return this;
         };
 
-        app.bootup = function(port,ip){
+        app.start = function(port,ip){
             if(!port) throw new Error("Please supply a port for connection");
             if(!ip) ip = "127.0.0.1";
 
@@ -23,16 +35,12 @@ module.exports = (function(core,ts){
             return this;
         };
 
-        app.reboot = function(callback){
-            this.server.close();
-        };
-
-        app.shutdown = function(callback){
+        app.stop = function(callback){
             this.server.close();
         };
 
         app.channel.add('bootup',function(){
-            app.bootup.apply(app,arguments);
+            app.start.apply(app,arguments);
         });
 
         app.channel.add('reboot',function(){
