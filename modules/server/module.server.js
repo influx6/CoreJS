@@ -4,14 +4,15 @@ module.exports = (function(core,ts){
   
   core.Modules.HttpServer = function HttpServerSetup(routes){
 
+
      return function HttpServer(channel,facade){
         
-        var app = Core.createAppShell(channel,facade);
+        var app = core.createAppShell(channel,facade);
         app.server = http.createServer();
 
         app.router = function(fn){
             var self = this;
-            fn.call(self,self.server);
+            fn.call(null,self.server);
             return this;
         };
 
@@ -24,6 +25,7 @@ module.exports = (function(core,ts){
         };
 
         app.reboot = function(callback){
+            this.server.removeAllListeners();
             this.server.close();
         };
 
@@ -42,6 +44,9 @@ module.exports = (function(core,ts){
         app.channel.add('shutdown',function(){
             app.shutdown.apply(app,arguments);
         });
+
+        //initaite app with the routes;
+        app.router(routes);
 
         return app;
     };

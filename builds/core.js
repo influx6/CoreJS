@@ -5,7 +5,7 @@ module.exports.Core = (function(toolstack){
     var Core = {},appr = /^app:/,
     //path = mod.path,
     ts = toolstack,
-    helpers = toolstack.Helpers,
+    helpers = toolstack.Helpers.HashMaps,
     utility = ts.Utility;
 
     module.exports.Core = Core;
@@ -27,7 +27,7 @@ module.exports.Core = (function(toolstack){
             box.fn = box.prototype;
 
             box.fn.channels = toolstack.MessageAPI();
-            box.fn.events = ToolStack.Events();
+            box.fn.events = toolstack.Events();
           
             box.fn.moduleDir = moduledir || Core.moduledir;
             box.fn.appDir = appdir || Core.appDir;
@@ -45,7 +45,7 @@ module.exports.Core = (function(toolstack){
               //initialize the app with arguments supplied and check for proper methods
               try{
 
-                appd = app.apply(null,config.args || []);
+                // appd = app.apply(null,config.args || []);
 
                 var key = apps[name];
                 key.name = config.name;
@@ -53,10 +53,10 @@ module.exports.Core = (function(toolstack){
                 key.id = util.guid();
 
                 this.channels.addChannel(name);
-                key.app = appd(this.channels.getChannel(key.channel),this.facade);
+                key.app = app(key.channel,this.facade);
                 
                 //test the app if 
-                var test = this.channels.getChanngel(name);
+                var test = this.channels.getChannel(name);
                 if(!test.exists('bootup') || !test.exists('reboot') || !test.exists('shutdown')) throw new Error("Invalid App!");
 
                 //setup permissions,directory and set app as registed
@@ -108,6 +108,16 @@ module.exports.Core = (function(toolstack){
 
           return new box;
       };
+      
+      Core.createAppShell = function(channel,facade){
+        var app  = { 
+          key: channel, 
+          facade: facade,
+          channel: facade.getChannels(channel),
+        };
+
+        return app;
+      };
 
       //provides a nice facaded for access by modules and apps
       Core.Facade = function(core){
@@ -122,7 +132,7 @@ module.exports.Core = (function(toolstack){
         facade.on = utility.proxy(core.channels.on,core.channels);
         facade.off = utility.proxy(core.channels.off,core.channels);
         facade.modules = function(){ return Core.Modules; };
-        facade.channel = core.channels;
+        facade.getChannel = utility.proxy(core.channels.getChannel,core.channels);
 
         facade.notify = function(caller,channel,command,data){
             //verify if it begins with 'app:'

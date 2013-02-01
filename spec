@@ -1,4 +1,4 @@
-var ts = require('toolstack').ToolStack,
+var ts = require('ts').ToolStack,
 util = ts.Utility,
 core = require('./builds/core').Core(ts),
 cjz = require('./jaz/sandbox.jaz')(ts,core);
