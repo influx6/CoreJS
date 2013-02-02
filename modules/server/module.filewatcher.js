@@ -28,8 +28,9 @@ module.exports = (function(core,ts){
               this.clock =  util.delay(function(){
 
                 util.eachAsync(self.watchables,function(e,i,o,fn){
-                    var localstat = fs.statSync(e.root);
-                    if(e.key !== keyGen(localstat.size,localstat.mtime)) e.fn();
+                    var localstat = fs.statSync(e.root),
+                    key = keyGen(localstat.size,localstat.mtime);
+                    if(e.key !== key){ e.fn(); e.key = key; }
                     fn(false);
                 },function(err){
                    if(err) return false;
@@ -54,7 +55,6 @@ module.exports = (function(core,ts){
           app.bootup = function Bootup(){
             if(this.rebooting) return;
 
-            console.log('booting');
             this.watching = true;
             this.cycle(this.ms);
             this.up = false;
