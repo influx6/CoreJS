@@ -64,7 +64,7 @@ module.exports = (function(core,ts){
           app.reboot = function Reboot(){
             var self = this;
 
-            this.up - this.watching = false;
+            this.up = this.watching = false;
             this.rebooting = true;
 
             console.log(this.clock,'rebooting',this.up,this.watching,this.rebooting);
