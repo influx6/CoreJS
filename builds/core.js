@@ -95,8 +95,8 @@ module.exports.Core = (function(toolstack){
                 //remove the app from the cache
                 delete this.apps[name];
                 //throw error to ensure they know whats wrong
-                throw e;
-                // throw new Core.Errors.AppRegisterError("App does not confirm to core specification, please review \n\t" + e.message,e);
+                // throw e;
+                throw new Core.Errors.AppRegisterError("App does not confirm to core specification, please review \n\t" + e.message,e);
                 return false;
               };
               
