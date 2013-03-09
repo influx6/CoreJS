@@ -1,15 +1,31 @@
 {
-  "name": "distribute",
+  "name": "corejs",
   "version": "0.0.1",
-  "description": "'superfly worker library'",
-  "main": "distribute.js",
+  "description": "a superfly js structure library",
+  "main": "./core.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "repository": "",
-  "author": "Alexander Adeniyi Ewetumo",
-  "license": "Mit",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/influx6/CoreJS.git"
+  },
+  "keywords": [
+    "core",
+    "mvc",
+    "large",
+    "scale",
+    "js",
+    "app"
+  ],
+  "directories":{
+      "modules":"./modules",
+      "builds":"./builds"
+  },
   "dependencies":{
-    "toolstack":"@0.3.x"
-  }
+      "tsk":"0.3.5"
+  },
+  "author": "Alex Adeniyin Ewetumo",
+  "license": "Mit",
+  "gitHead": "10bfc698e0d0fc892a7d448772f02b2bfb4fe9cd"
 }

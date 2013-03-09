@@ -1,6 +1,7 @@
-module.exports = (function(core,ts){
+module.exports.FileWatcher = (function(core){
 
-    var util = ts.Utility, 
+    var ts = require('ts').ToolStack,
+        util = ts.Utility, 
         path = require('path'), fs = require('fs'),
         helper = ts.Helpers.HashMaps,
         keyGen = function keyGen(size,time){
@@ -103,9 +104,9 @@ module.exports = (function(core,ts){
 
 });
 
-module.exports = (function(core,ts){
+module.exports.HttpServer = (function(core){
   
-  var utility = ts.Utility, http = require('http');
+  var ts = require('ts').ToolStack,util = ts.Utility, http = require('http');
   
   core.Modules.HttpServer = function HttpServerSetup(routes){
 
@@ -115,9 +116,12 @@ module.exports = (function(core,ts){
         var app = core.createAppShell(channel,facade);
         app.server = http.createServer();
 
+        //user defined status
+        app.up = false;
+
         app.router = function(fn){
-            var self = this;
-            fn.call(null,self.server);
+            this.routes = fn;
+            fn.call(null,this.server);
             return this;
         };
 
@@ -125,17 +129,31 @@ module.exports = (function(core,ts){
             if(!port) throw new Error("Please supply a port for connection");
             if(!ip) ip = "127.0.0.1";
 
-            this.server.listen(port,ip);
+            var self = this;
+            this.server.listen(port,ip,function(){
+                self.up = true;
+            });
+            this.router(this.routes);
             return this;
         };
 
         app.reboot = function(callback){
-            this.server.removeAllListeners();
-            this.server.close();
+            if(!this.up) this.bootup();
+
+            var cb = util.proxy(function(){
+                this.bootup();
+            },this)
+            return this.shutdown(cb);
         };
 
         app.shutdown = function(callback){
+            if(!this.up) return;
+
+            this.server.on('close',callback);
+            this.server.removeAllListeners('request');
             this.server.close();
+            this.up = false;
+            return true;
         };
 
         app.channel.add('bootup',function(){

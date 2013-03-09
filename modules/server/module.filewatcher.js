@@ -1,6 +1,7 @@
-module.exports = (function(core,ts){
+module.exports.FileWatcher = (function(core){
 
-    var util = ts.Utility, 
+    var ts = require('ts').ToolStack,
+        util = ts.Utility, 
         path = require('path'), fs = require('fs'),
         helper = ts.Helpers.HashMaps,
         keyGen = function keyGen(size,time){

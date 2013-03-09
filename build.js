@@ -16,3 +16,11 @@ js.compile({
 	src:['core.js']
 });
 
+js.compile({
+	src_dir: './builds',
+	build_dir:".",
+	name: "core.js",
+	uglify: true,
+	src:['core.js','servermodules.core.js']
+})
+
