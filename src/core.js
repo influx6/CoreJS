@@ -7,6 +7,7 @@ module.exports.Core = (function(toolstack){
     ts = toolstack,
     helpers = toolstack.Helpers.HashMaps,
     util = ts.Utility,
+    Promise = ts.Promise,
     eutil = ts.Errors;
 
     module.exports.Core = Core;
@@ -36,7 +37,7 @@ module.exports.Core = (function(toolstack){
             box.fn = box.prototype;
 
             box.fn.channels = toolstack.MessageAPI(false,100);
-            box.fn.services = toolstack.MessageAPI(false,100);
+            // box.fn.services = toolstack.MessageAPI(false,100);
             box.fn.events = toolstack.Events();
           
             box.fn.moduleDir = moduledir || Core.moduledir;
@@ -162,7 +163,7 @@ module.exports.Core = (function(toolstack){
             };
 
 
-            box.fn.boot = function(){
+            box.fn.boot = function(onComplete){
               util.eachAsync(this.apps,function(e,i,o,fn){
                   if(!e) return;
                   try{ this.bootApp(i); }catch(e){ fn(e); }
@@ -171,10 +172,11 @@ module.exports.Core = (function(toolstack){
                 if(err) throw err;
                 this.up = true;
                 this.channels.resume();
+                if(onComplete) onComplete(this);
               },this);
             };
 
-            box.fn.deBoot = function(){
+            box.fn.deBoot = function(onComplete){
               util.eachAsync(this.apps,function(e,i,o,fn){
                   if(!e) return;
                   try{ this.deBootApp(i); }catch(e){ fn(e); }
@@ -184,10 +186,11 @@ module.exports.Core = (function(toolstack){
                 this.up = false;
                 this.channels.pause();
                 this.channels.flush();
+                if(onComplete) onComplete(this);
               },this);
             };
 
-            box.fn.bootApp = function(channel,after){
+            box.fn.bootApp = function(channel,onComplete){
               // if(!appr.test(channel)) channel = 'app:'.concat(channel);
 
               var app = helpers.fetch.call(this.apps,channel),
@@ -201,20 +204,21 @@ module.exports.Core = (function(toolstack){
                 loadd = helpers.fetch.call(this.loaded,channel);
               }
 
-              if(loadd || loadd.running) return false;
+              if(loadd && loadd.running) return false;
 
 
               loadd.running = true;
 
+              console.log('booting:',channel)
               this.channels.notify.apply(this.channels,[channel,'bootup'].concat(loadd.bootargs));
               this.events.emit(channel.concat(':bootup'));
 
-              if(after && util.isFunction(after)) after.call(null);
+              if(onComplete && util.isFunction(onComplete)) onComplete.call(null);
 
               return true;
             };
 
-            box.fn.deBootApp= function(channel,after){
+            box.fn.deBootApp= function(channel,onComplete){
               // if(!appr.test(name)) channel = 'app:'.concat(channel);
 
               //check exisitng and state of app
@@ -227,7 +231,7 @@ module.exports.Core = (function(toolstack){
               this.channels.notify(channel,'shutdown');
               this.emit(channel.concat(':shutdown'));
 
-              if(after && util.isFunction(after)) after.call(null);
+              if(onComplete && util.isFunction(onComplete)) onComplete.call(null);
 
               return true;
             };
@@ -240,7 +244,7 @@ module.exports.Core = (function(toolstack){
         key: channel, 
         facade: facade,
         channel: facade.getChannel(channel),
-        services: facade.getService(channel),
+        // services: facade.getService(channel),
       };
 
       return app;
@@ -264,31 +268,68 @@ module.exports.Core = (function(toolstack){
 
       facade.notify = function(caller,channel,command){
           //verify if it begins with 'app:'
-          var orgcaller = caller, orgchannel = channel,
-          args = util.makeSplice(arguments,3,arguments.length);
+        var args = util.arranize(arguments), 
+            caller = args.shift(),
+            app = args.shift(), 
+            command = args.shift(),
+            promise = Promise.create();
 
           // if(!appr.test(caller)) caller = 'app:'.concat(caller);
           // if(!appr.test(channel)) channel = 'app:'.concat(channel);
 
           //verify if channel does exists;
-          if(!helpers.exists.call(core.apps,channel)) return false;
-          if(!helpers.exists.call(core.apps,caller)) return false;
+          if(!helpers.exists.call(core.apps,channel) || !helpers.exists.call(core.apps,caller)) 
+            return promise.reject(new Error('Channel or Requester Not in Registery!')).promise(); 
           
           var permObj = helpers.fetch.call(core.permissions,caller);
 
           if(!permObj) return false;
 
-          if(!(permObj[channel] && permObj[channel][command])) return false;
+          if(!(permObj[channel] && permObj[channel][command])) return promise.reject(new Error('Access Not Allowed!')).promise();
+
+          args.push(promise);
 
           core.channels.notify.apply(core.channels,[channel,command].concat(args));
           
           if(core.up) core.channels.resume();
 
-          return;
+          return promise.promise();
       };
 
-        core.facade = facade;
-        return true;
+      //allows outside controlled by permissions,access to request app state or service
+      facade.request = function(fn){
+        var args = util.arranize(arguments), 
+            cable = 'global',
+            app = args.shift(), 
+            command = args.shift(),
+            promise = Promise.create();
+
+        if(!helpers.exists.call(core.apps,app)) return false;
+        // if(!helpers.exists.call(core.loaded,channel)) return false;
+
+        var permObj = helpers.fetch.call(core.permissions,app);
+
+        if(!permObj) return promise.reject(new Error('Permission Not Found!')).promise();
+
+        //if permission has no global in it then it will not be accessible to outside
+        // in global ,specific channels must be set to true to be usable also,else no
+        //request is made in messagepool
+        if(!(permObj[cable] && permObj[cable][command])) return promise.reject(new Error('Access Not Allowed!')).promise();
+
+        args.push(promise);
+
+        core.channels.notify.apply(core.channels,[app,command].concat(args));
+        
+        if(core.up && core.loaded[app].running) core.channels.resume();
+
+        return promise.promise();
+
+      };
+
+ 
+
+      core.facade = facade;
+      return true;
 
       };
       
