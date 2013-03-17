@@ -1,1 +1,582 @@
-var module=module||{exports:{}};module.exports.Core=function(a){var b={},c=/^app:/,d=a,e=a.Helpers.HashMaps,f=d.Utility,g=d.Promise,h=d.Errors;return module.exports.Core=b,b.gpid=f.guid(),b.moduleDir="./modules/",b.appDir="./apps/",b.Errors={AppError:h.createError("AppError"),AppRegisterError:h.createError("AppRegisterError"),ChannelNotifyError:h.createError("ChannelNotifyError")},b.Sandbox=function(c,d,g){var h=function(){this.apps={},this.loaded={},this.gpid=b.gpid,this.pid=f.guid(),this.up=!1,this.permissions=g||{},b.Facade(this)};return h.fn=h.prototype,h.fn.channels=a.MessageAPI(!1,100),h.fn.events=a.Events(),h.fn.moduleDir=c||b.moduledir,h.fn.appDir=d||b.appDir,h.fn.addPermissions=function(a,b){if(b&&!f.isObject(b))throw Error(f.makeString(" ","Permission must be an object of action:state rules eg (app,admin,{ request: true })"));e.add.call(this.permissions,a,b)},h.fn.mergePermissions=function(a,b){var c=e.fetch.call(this.permissions,a);f.merge(c,b);return},h.fn.getPermissions=function(a,b){var c=e.fetch.call(this.permissions,a);return b?c[b]:c},h.fn.revokePermissions=function(a,b){var c=e.fetch.call(this.permissions,a);if(c&&c[b])return delete c[b];return},h.fn.registerApp=function(a,c,d){if(!f.isFunction(a))throw Error("Your App must be a function to be called!");if(!f.isString(c.name)||this.apps[c.name])return!1;var e=this,g=c.name,h;this.apps[g]=c,this.addPermissions(g,null,null);try{var i=this.apps[g];i.name=c.name,i.channel=g,i.id=f.guid(),this.channels.addChannel(g),i.app=a(i.channel,this.facade);var j=this.channels.getChannel(g);if(!j.exists("bootup")||!j.exists("reboot")||!j.exists("shutdown"))throw new b.Errors.AppError("App lacks valid channels: { bootup, reboot, shutdown}!",this);c.main&&(i.root=b.appDir.concat(c.main)),d&&this.mergePermissions(g,d),i.registered=!0,i.statebox={name:i.name,key:i.channel,running:!1,permissions:function(){return e.getPermissions(i.name)},bootargs:c.bootargs?f.isArray(c.bootargs)?c.bootargs:[c.bootargs]:[]},this.events.set(g.concat(":bootup")),this.events.set(g.concat(":shutdown")),c.beforeBoot&&f.isFunction(c.beforeBoot)&&c.beforeBoot({key:i.key,name:i.name,root:i.root,notify:function(a,b){var c=f.arranize(arguments);return e.facade.notify.apply(e,[i.name].concat(c))}})}catch(k){throw delete this.apps[g],new b.Errors.AppRegisterError("App does not confirm to core specification, please review \n	"+k.message)}return!0},h.fn.unregisterApp=function(a){if(!f.isString(a)||!this.apps[a])return!1;var b,c=this;this.loaded[a]&&delete this.loaded[a],this.deBoot(a,function(){delete c.apps[a],delete c.loaded[a],c.channels.removeChannel(a)})},h.fn.boot=function(a){f.eachAsync(this.apps,function(a,b,c,d){if(!a)return;try{this.bootApp(b)}catch(a){d(a)}d(!1)},function(b){if(b)throw b;this.up=!0,this.channels.resume(),a&&a(this)},this)},h.fn.deBoot=function(a){f.eachAsync(this.apps,function(a,b,c,d){if(!a)return;try{this.deBootApp(b)}catch(a){d(a)}d(!1)},function(b){if(b)throw b;this.up=!1,this.channels.pause(),this.channels.flush(),a&&a(this)},this)},h.fn.bootApp=function(a,b){var c=e.fetch.call(this.apps,a),d=e.fetch.call(this.loaded,a);return c?(d||(e.add.call(this.loaded,a,c.statebox),d=e.fetch.call(this.loaded,a)),d&&d.running?!1:(d.running=!0,console.log("booting:",a),this.channels.notify.apply(this.channels,[a,"bootup"].concat(d.bootargs)),this.events.emit(a.concat(":bootup")),b&&f.isFunction(b)&&b.call(null),!0)):!1},h.fn.deBootApp=function(a,b){if(!e.exists.call(this.apps,a)||!e.exists.call(this.loaded,a))return!1;var c=e.fetch.call(this.loaded,a);return c.running?(c.running=!1,this.channels.notify(a,"shutdown"),this.emit(a.concat(":shutdown")),b&&f.isFunction(b)&&b.call(null),!0):!1},new h},b.createAppShell=function(a,b){var c={key:a,facade:b,channel:b.getChannel(a)};return c},b.Facade=function(a){if(!a||!a.gpid||a.gpid!==b.gpid||a.facade&&a.facade.isCreated)return!1;var c={};return f.createProperty(c,"isCreated",{get:function(){return!0},set:function(a){}}),c.on=f.proxy(a.channels.on,a.channels),c.off=f.proxy(a.channels.off,a.channels),c.registerApp=f.proxy(a.registerApp,a),c.modules=function(){return b.Modules},c.getChannel=f.proxy(a.channels.getChannel,a.channels),c.notify=function(b,c,d){var h=f.arranize(arguments),b=h.shift(),i=h.shift(),d=h.shift(),j=g.create();if(!e.exists.call(a.apps,c)||!e.exists.call(a.apps,b))return j.reject(Error("Channel or Requester Not in Registery!")).promise();var k=e.fetch.call(a.permissions,b);return k?!k[c]||!k[c][d]?j.reject(Error("Access Not Allowed!")).promise():(h.push(j),a.channels.notify.apply(a.channels,[c,d].concat(h)),a.up&&a.channels.resume(),j.promise()):!1},c.request=function(b){var c=f.arranize(arguments),d="global",h=c.shift(),i=c.shift(),j=g.create();if(!e.exists.call(a.apps,h))return!1;var k=e.fetch.call(a.permissions,h);return k?!k[d]||!k[d][i]?j.reject(Error("Access Not Allowed!")).promise():(c.push(j),a.channels.notify.apply(a.channels,[h,i].concat(c)),a.up&&a.loaded[h].running&&a.channels.resume(),j.promise()):j.reject(Error("Permission Not Found!")).promise()},a.facade=c,!0},b.Modules={},b},module.exports.FileWatcher=function(a){var b=require("ts").ToolStack,c=b.Utility,d=require("path"),e=require("fs"),f=b.Helpers.HashMaps,g=function(b,c){return Math.round(b*c/8e6)};a.Modules.FileWatcher=function(){return function(h,i){var j=a.createAppShell(h,i);return j.watchables={},j.ms=500,j.clock=null,j.watching=!1,j.rebooting=!1,j.up=!1,j.cycle=function(b){if(!this.watching&&!this.up||this.rebooting)return;b&&(this.ms=b);var d=this;return this.clock=c.delay(function(){c.eachAsync(d.watchables,function(a,b,c,d){var f=e.statSync(a.root),h=g(f.size,f.mtime);a.key!==h&&(a.fn(),a.key=h),d(!1)},function(a){if(a)return!1;d.cycle(d.ms)})},this.ms),!0},j.watch=function(b,c,h){if(!e.existsSync(c))return;var i=this,j=e.statSync(c),k=g(j.size,j.mtime);f.add.call(this.watchables,b,{key:k,root:d.normalize(c),fn:h})},j.bootup=function(){if(this.rebooting)return;return this.watching=!0,this.cycle(this.ms),this.up=!1,!0},j.reboot=function(){var b=this;this.up=this.watching=!1,this.rebooting=!0,console.log(this.clock,"rebooting",this.up,this.watching,this.rebooting),clearTimeout(this.clock),clock=c.delay(function(){b.bootup(),b.rebooting=!1},250)},j.shutdown=function(){this.isWatching=!1,this.isShutdown=!0,clearTimeout(this.clock)},j.channel.add("watch",function(a,b,c){j.watch(a,b,c)}),j.channel.add("bootup",function(){j.bootup.apply(j,arguments)}),j.channel.add("reboot",function(){j.reboot.apply(j,arguments)}),j.channel.add("shutdown",function(){j.shutdown.apply(j,arguments)}),j}}},module.exports.HttpServer=function(a){var b=require("ts").ToolStack,c=b.Utility,d=require("http");a.Modules.HttpServer=function(e){return function(f,g){var h=a.createAppShell(f,g);return h.server=d.createServer(),h.up=!1,h.router=function(a){return this.routes=a,a.call(null,this.server),this},h.bootup=function(a,b){if(!a)throw Error("Please supply a port for connection");b||(b="127.0.0.1");var c=this;return this.server.listen(a,b,function(){c.up=!0}),this.router(this.routes),this},h.reboot=function(a){this.up||this.bootup();var b=c.proxy(function(){this.bootup()},this);return this.shutdown(b)},h.shutdown=function(a){if(!this.up)return;return this.server.on("close",a),this.server.removeAllListeners("request"),this.server.close(),this.up=!1,!0},h.channel.add("bootup",function(){h.bootup.apply(h,arguments)}),h.channel.add("reboot",function(){h.reboot.apply(h,arguments)}),h.channel.add("shutdown",function(){h.shutdown.apply(h,arguments)}),h.router(e),h}}}
+var module = module || { exports: {} };
+
+module.exports.Core = (function(toolstack){
+		
+    var Core = {},appr = /^app:/,
+    //path = mod.path,
+    ts = toolstack,
+    helpers = toolstack.Helpers.HashMaps,
+    util = ts.Utility,
+    Promise = ts.Promise,
+    eutil = ts.Errors;
+
+    module.exports.Core = Core;
+
+    Core.gpid = util.guid();
+    Core.moduleDir = "./modules/";
+    Core.appDir = "./apps/";
+    Core.Errors = {
+      AppError: eutil.createError('AppError'),
+      AppRegisterError: eutil.createError('AppRegisterError'),
+      ChannelNotifyError: eutil.createError('ChannelNotifyError'),
+    };
+
+
+    Core.Sandbox = function(moduledir,appdir,perms){
+            var box = function(){
+              this.apps = {};
+              this.loaded = {};
+              this.gpid = Core.gpid;
+              this.pid = util.guid();
+              this.up = false;
+              this.permissions = Core.Permissions(perms);
+
+              Core.Facade(this);
+
+              //aliases
+              this.fc = this.facade;
+              this.pm = this.permissions;
+            };
+
+            box.fn = box.prototype;
+            box.fn.channels = toolstack.MessageAPI(false,100);
+            // box.fn.services = toolstack.MessageAPI(false,100);
+            box.fn.events = toolstack.Events();
+          
+            box.fn.moduleDir = moduledir || Core.moduledir;
+            box.fn.appDir = appdir || Core.appDir;
+
+            // box.fn.authorizeBox = function(box,perms){
+            //   if(!util.isObject(box) || !util.isObject(perms)) return false;
+
+            //   var key = util.guid();
+            //   box.coreKey = key;
+            //   util.each(perms,function(e,i,o){
+            //     this.pm.push(i,key,e);
+            //   },this);
+            // };
+
+            box.fn.registerApp = function(app,config){
+                if(!util.isFunction(app)) throw new Error("Your App must be a function to be called!");
+                if(!util.isString(config.name) || this.apps[config.name]) return false;
+                
+                var self = this,name = config.name,appd;
+
+                if(!util.has(config,'autoboot')) config.autoboot = true;
+
+                this.apps[name] = config;
+                //initialize the app with arguments supplied and check for proper methods
+
+                try{
+
+                  // appd = app.apply(null,config.args || []);
+
+                  var key = this.apps[name];
+                  key.name = config.name;
+                  key.channel = name;
+                  key.id = util.guid();
+
+                  this.channels.addChannel(name);
+                  // this.services.addChannel(name);
+                  
+                  key.app = app(key.channel,this.facade);
+                  
+                  //test the app if 
+                  var test = this.channels.getChannel(name);
+                  if(!test.exists('bootup') || !test.exists('reboot') || !test.exists('shutdown')) throw new Core.Errors.AppError("App lacks valid channels: { bootup, reboot, shutdown}!",this);
+
+                  //setup permissions,directory and set app as registed
+                  if(config.main) key.root = Core.appDir.concat(config.main);
+                  // key.permissions = permissions || {};
+                  // if(permissions) this.permissions.push(name,permissions);
+                  key.registered = true;
+
+      
+                  key.statebox = {
+                    name: key.name, 
+                    key: key.channel, 
+                    running: false, 
+                    bootargs: (config.bootargs ? (util.isArray(config.bootargs) ? config.bootargs : [config.bootargs]) : []),
+                  };
+
+                  this.events.set(name.concat(':bootup'));
+                  this.events.set(name.concat(':shutdown'));
+
+                  // this.channels.getChannel(key.channel).add('bootup',function(){
+                  //     key.app.bootup.apply(key.app,arguments);
+                  // });
+                  // this.channels.getChannel(key.channel).add('reboot',function(){
+                  //     key.app.reboot.apply(key.app,arguments);
+                  // });
+                  // this.channels.getChannel(key.channel).add('shutdown',function(){
+                  //     key.app.shutdown.apply(key.app,arguments);
+                  // });
+
+                  if(config.beforeBoot && util.isFunction(config.beforeBoot))  config.beforeBoot({ 
+                    key: key.key,
+                    name: key.name,
+                    root: key.root, 
+                    notify:function(channel,command){
+                      var args = util.arranize(arguments);
+                      return self.facade.notify.apply(self,[key.name].concat(args));
+                    } 
+                  });
+
+                }catch(e){
+                  //remove the app from the cache
+                  delete this.apps[name];
+                  //throw error to ensure they know whats wrong
+                  // throw e;
+                  throw new Core.Errors.AppRegisterError("App does not confirm to core specification, please review \n\t" + e.message);
+                  return false;
+                };
+                
+                
+                return true;
+            };
+
+            box.fn.unregisterApp = function(name){
+              if(!util.isString(name) || !this.apps[name]) return false;
+              var app,self = this;
+
+              // if(!appr.test(name)) name = 'app:'.concat(name);
+              if(this.loaded[name]) delete this.loaded[name];
+
+              this.deBoot(name,function(){
+                delete self.apps[name];
+                delete self.loaded[name];
+                self.channels.removeChannel(name);
+                // delete self.permissions[name];
+              });
+
+            };
+
+
+            box.fn.boot = function(onComplete){
+              util.eachAsync(this.apps,function(e,i,o,fn){
+                  if(!e) return;
+                  try{ if(e.autoboot) this.bootApp(i); }catch(e){ fn(e); }
+                  fn(false)
+              },function(err){
+                if(err) throw err;
+                this.up = true;
+                this.channels.resume();
+                if(onComplete) onComplete(this);
+              },this);
+            };
+
+            box.fn.deBoot = function(onComplete){
+              util.eachAsync(this.apps,function(e,i,o,fn){
+                  if(!e) return;
+                  try{ this.deBootApp(i); }catch(e){ fn(e); }
+                  fn(false)
+              },function(err){
+                if(err) throw err;
+                this.up = false;
+                this.channels.pause();
+                this.channels.flush();
+                if(onComplete) onComplete(this);
+              },this);
+            };
+
+            box.fn.bootApp = function(channel,onComplete){
+              // if(!appr.test(channel)) channel = 'app:'.concat(channel);
+
+              var app = helpers.fetch.call(this.apps,channel),
+              loadd = helpers.fetch.call(this.loaded,channel);
+              //check exisitng and state of app
+
+
+              if(!app) return false;
+              if(!loadd){
+                helpers.add.call(this.loaded,channel,app.statebox);
+                loadd = helpers.fetch.call(this.loaded,channel);
+              }
+
+              if(loadd && loadd.running) return false;
+
+
+              loadd.running = true;
+
+              console.log('booting:',channel)
+              this.channels.notify.apply(this.channels,[channel,'bootup'].concat(loadd.bootargs));
+              this.events.emit(channel.concat(':bootup'));
+
+              if(onComplete && util.isFunction(onComplete)) onComplete.call(null);
+
+              return true;
+            };
+
+            box.fn.deBootApp= function(channel,onComplete){
+              // if(!appr.test(name)) channel = 'app:'.concat(channel);
+
+              //check exisitng and state of app
+              if(!helpers.exists.call(this.apps,channel) || !helpers.exists.call(this.loaded,channel)) return false;
+
+              var app = helpers.fetch.call(this.loaded,channel);
+              if(!app.running) return false;
+
+              app.running = false;
+              this.channels.notify(channel,'shutdown');
+              this.emit(channel.concat(':shutdown'));
+
+              if(onComplete && util.isFunction(onComplete)) onComplete.call(null);
+
+              return true;
+            };
+
+            return new box;
+    };
+      
+    Core.createAppShell = function(channel,facade){
+      var app  = { 
+        key: channel, 
+        facade: facade,
+        channel: facade.getChannel(channel),
+        // services: facade.getService(channel),
+      };
+
+      return app;
+    };
+
+    //provides a nice facaded for access by modules and apps
+    Core.Facade = function(core){
+      if(!core || !core.gpid || (core.gpid !== Core.gpid) || (core.facade && core.facade.isCreated)) return false;
+
+      var facade = {};
+      util.createProperty(facade,'isCreated',{
+          get: function(){ return true },
+          set: function(val){ }
+      });
+
+      facade.on = util.proxy(core.channels.on,core.channels);
+      facade.off = util.proxy(core.channels.off,core.channels);
+      facade.registerApp = util.proxy(core.registerApp,core);
+      facade.modules = function(){ return Core.Modules; };
+      facade.getChannel = util.proxy(core.channels.getChannel,core.channels);
+
+      facade.notify = function(caller,channel,command){
+          //verify if it begins with 'app:'
+        var args = util.arranize(arguments), 
+            caller = args.shift(),
+            app = args.shift(), 
+            command = args.shift(),
+            promise = Promise.create();
+
+          // if(!appr.test(caller)) caller = 'app:'.concat(caller);
+          // if(!appr.test(channel)) channel = 'app:'.concat(channel);
+
+          //verify if channel does exists;
+          if(!helpers.exists.call(core.apps,channel) || !helpers.exists.call(core.apps,caller)) {
+            promise.reject({ err: new Error('Channel or Requester Not in Registery!')});
+            return promise.promise();
+          }
+          
+          if(!core.pm.get(app,cable)){ 
+            promise.reject({ err: new Error('Permission Not Found!')});
+            return promise.promise(); 
+          }
+
+          //if permission has no global in it then it will not be accessible to outside
+          // in global ,specific channels must be set to true to be usable also,else no
+          //request is made in messagepool
+          if(!core.pm.get(app,cable,command)){
+            promise.reject({ err:new Error('Access Not Allowed!')});
+            return promise.promise();
+          }
+
+
+          args.push(promise);
+
+          core.channels.notify.apply(core.channels,[channel,command].concat(args));
+          
+          if(core.up) core.channels.resume();
+
+          return promise.promise();
+      };
+
+      //allows outside controlled by permissions,access to request app state or service
+      facade.request = function(){
+        var args = util.arranize(arguments), 
+            cable = 'global',
+            app = args.shift(), 
+            command = args.shift(),
+            promise = Promise.create();
+
+        if(!helpers.exists.call(core.apps,app)) return false;
+        // if(!helpers.exists.call(core.loaded,channel)) return false;
+
+        if(!core.pm.get(app,cable)){ promise.reject({ err: new Error('Permission Not Found!')}); return promise.promise(); }
+
+        //if permission has no global in it then it will not be accessible to outside
+        // in global ,specific channels must be set to true to be usable also,else no
+        //request is made in messagepool
+        if(!core.pm.get(app,cable,command)){ promise.reject({ err:new Error('Access Not Allowed!')}); return promise.promise(); }
+        
+
+        args.push(promise);
+
+        core.channels.notify.apply(core.channels,[app,command].concat(args));
+        
+        if(core.up && core.loaded[app].running) core.channels.resume();
+
+        return promise.promise();
+
+      };
+
+ 
+      core.facade = facade;
+      return true;
+    };
+
+
+    Core.Permissions = function(perm){
+        if(perm && !util.isObject(perm)) return;
+
+        var validate_rule = function ruleValidator(o){
+          if(!o || !util.isObject(o)) return null;
+          var stat = true;
+          util.each(o,function(){},null,function(e,i,o){
+            if(stat && !util.isBoolean(e)){ stat = false; return true; }
+            return false;
+          });
+          return stat;
+        };
+
+        var permissions = { rules: {} };
+
+        permissions.push = function pushPerm(app,perms){
+          if(!util.isObject(perms)) return null;
+          util.each(perms,function(e,i,o){
+            if(!util.isObject(e)) return;
+            this.add(app,i,e);
+          },this);
+        };
+
+        permissions.add = function addPerm(app,target,perms){
+          if(perm && !util.isObject(perm)) return false;
+          if(!helpers.exists.call(this.rules,app)) helpers.add.call(this.rules,app,{});
+          var o = helpers.fetch.call(this.rules,app);
+          if(target && perms){
+            if(validate_rule(perms)) helpers.add.call(o,target,perms);
+          }
+        };
+
+        permissions.get = function getPerm(app,target,event){
+          var o = helpers.fetch.call(this.rules,app);
+          if(!target) return o;
+          if(!event) return helpers.fetch.call(o,target);
+          return helpers.fetch.call(helpers.fetch.call(o,target),event);
+        };
+
+        permissions.approve = function modPerm(app,target,event){
+          return this.manage(app,target,event,true);
+        };
+
+        permissions.revoke = function revokePerm(app,target,event){
+          return this.manage(app,target,event,false);
+        };
+
+        permissions.remove = function removePerm(app,target){
+          if(!app) return;
+          if(!target) return helpers.remove.call(this.rules,app);
+          if(target) return helpers.remove.call(helpers.fetch.call(this.rules,app),target);
+        };
+
+        permissions.manage = function(app,target,event,state){
+          if(!app || !target || !util.isBoolean(state)) return null;
+          var o = helpers.fetch.call(this.rules,app);
+          if(!o) return null;
+          if(!event) return (util.each(helpers.fetch.call(o,target),function(e,i,o){ o[i] = state; },this));
+          if(event) return (helpers.fetch.call(o,target)[event] = state);
+          return;
+        };
+
+        if(perm) permissions.rules = perm;
+        return permissions;
+    };
+      
+    Core.Modules = {};
+
+    return Core;
+});
+
+module.exports.FileWatcher = (function(core){
+
+    var ts = require('ts').ToolStack,
+        util = ts.Utility, 
+        path = require('path'), fs = require('fs'),
+        helper = ts.Helpers.HashMaps,
+        keyGen = function keyGen(size,time){
+          return Math.round((size * time)/8000000);
+        };
+    
+    core.Modules.FileWatcher = function FileWatcherSetup(){
+      return function FileWatcher(channel,facade){
+          var app = core.createAppShell(channel,facade);
+          app.watchables = {};
+          app.ms = 500;
+          app.clock = null;
+
+          //basic checkers for ops
+          app.watching = false;
+          app.rebooting = false;
+          app.up = false;
+          
+          app.cycle = function Cycle(ms){
+              if((!this.watching && !this.up) || this.rebooting ) return;
+
+              if(ms) this.ms = ms;
+
+              var self = this;
+              this.clock =  util.delay(function(){
+
+                util.eachAsync(self.watchables,function(e,i,o,fn){
+                    var localstat = fs.statSync(e.root),
+                    key = keyGen(localstat.size,localstat.mtime);
+                    if(e.key !== key){ e.fn(); e.key = key; }
+                    fn(false);
+                },function(err){
+                   if(err) return false;
+                   self.cycle(self.ms);
+                });
+
+              },this.ms);
+
+              return true;
+          };
+
+          app.watch = function Watch(name,file,fn){
+            if(!fs.existsSync(file)) return;
+
+            var self = this,
+                stat = fs.statSync(file), 
+                key = keyGen(stat.size,stat.mtime);
+
+            helper.add.call(this.watchables,name,{ key: key, root: path.normalize(file),fn:fn });
+          };
+
+          app.bootup = function Bootup(){
+            if(this.rebooting) return;
+
+            this.watching = true;
+            this.cycle(this.ms);
+            this.up = false;
+            return true;
+          };
+
+          app.reboot = function Reboot(){
+            var self = this;
+
+            this.up = this.watching = false;
+            this.rebooting = true;
+
+            console.log(this.clock,'rebooting',this.up,this.watching,this.rebooting);
+
+            clearTimeout(this.clock);
+            clock = util.delay(function(){
+              self.bootup();
+              self.rebooting = false;
+            },250);
+          };
+
+          app.shutdown = function Shutdown(){
+            this.isWatching = false; this.isShutdown = true;
+            clearTimeout(this.clock);
+          };
+          
+          app.channel.add('watch',function(name,path,fn){
+              app.watch(name,path,fn);
+          });
+          
+          app.channel.add('bootup',function(){
+            app.bootup.apply(app,arguments);
+          });
+
+          app.channel.add('reboot',function(){
+            app.reboot.apply(app,arguments);
+          });
+
+          app.channel.add('shutdown',function(){
+            app.shutdown.apply(app,arguments);
+          });
+
+          return app;
+      };
+    };
+
+});
+
+module.exports.HttpServer = (function(core){
+  
+  var ts = require('ts').ToolStack,util = ts.Utility, http = require('http');
+  
+  core.Modules.HttpServer = function HttpServerSetup(routes){
+
+
+     return function HttpServer(channel,facade){
+        
+        var app = core.createAppShell(channel,facade);
+        app.server = http.createServer();
+
+        //user defined status
+        app.up = false;
+
+        app.router = function(fn){
+            this.routes = fn;
+            fn.call(null,this.server);
+            return this;
+        };
+
+        app.bootup = function(port,ip){
+            if(!port) throw new Error("Please supply a port for connection");
+            if(!ip) ip = "127.0.0.1";
+
+            var self = this;
+            this.server.listen(port,ip,function(){
+                self.up = true;
+            });
+            this.router(this.routes);
+            return this;
+        };
+
+        app.reboot = function(callback){
+            if(!this.up) this.bootup();
+
+            var cb = util.proxy(function(){
+                this.bootup();
+            },this)
+            return this.shutdown(cb);
+        };
+
+        app.shutdown = function(callback){
+            if(!this.up) return;
+
+            this.server.on('close',callback);
+            this.server.removeAllListeners('request');
+            this.server.close();
+            this.up = false;
+            return true;
+        };
+
+        app.channel.add('bootup',function(){
+            app.bootup.apply(app,arguments);
+        });
+
+        app.channel.add('reboot',function(){
+            app.reboot.apply(app,arguments);
+        });
+
+        app.channel.add('shutdown',function(){
+            app.shutdown.apply(app,arguments);
+        });
+
+        //initaite app with the routes;
+        app.router(routes);
+
+        return app;
+    };
+  };
+
+
+});

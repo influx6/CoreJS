@@ -20,7 +20,7 @@ js.compile({
 	src_dir: './builds',
 	build_dir:".",
 	name: "core.js",
-	uglify: true,
+	uglify: false,
 	src:['core.js','servermodules.core.js']
 })
 

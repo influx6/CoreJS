@@ -29,13 +29,16 @@ module.exports.Core = (function(toolstack){
               this.gpid = Core.gpid;
               this.pid = util.guid();
               this.up = false;
-              this.permissions =  perms || {};
+              this.permissions = Core.Permissions(perms);
 
               Core.Facade(this);
+
+              //aliases
+              this.fc = this.facade;
+              this.pm = this.permissions;
             };
 
             box.fn = box.prototype;
-
             box.fn.channels = toolstack.MessageAPI(false,100);
             // box.fn.services = toolstack.MessageAPI(false,100);
             box.fn.events = toolstack.Events();
@@ -43,40 +46,27 @@ module.exports.Core = (function(toolstack){
             box.fn.moduleDir = moduledir || Core.moduledir;
             box.fn.appDir = appdir || Core.appDir;
 
-            box.fn.addPermissions = function(app,perms){
-              if(perms && !util.isObject(perms)){ throw new Error(util.makeString(' ','Permission must be an object of action:state rules eg (app,admin,{ request: true })')); return false; }
-              helpers.add.call(this.permissions,app,perms);
-            };
+            // box.fn.authorizeBox = function(box,perms){
+            //   if(!util.isObject(box) || !util.isObject(perms)) return false;
 
-            box.fn.mergePermissions = function(app,newperm){
-              var perm = helpers.fetch.call(this.permissions,app);
-              util.merge(perm,newperm);
-              return;
-            };
+            //   var key = util.guid();
+            //   box.coreKey = key;
+            //   util.each(perms,function(e,i,o){
+            //     this.pm.push(i,key,e);
+            //   },this);
+            // };
 
-            box.fn.getPermissions = function(app,target){
-              var perm = helpers.fetch.call(this.permissions,app);
-              if(!target) return perm;
-              return perm[target];
-            };
-
-            box.fn.revokePermissions = function(app,target){
-              var i = helpers.fetch.call(this.permissions,app);
-              if(i && i[target]) return (delete i[target]);
-              return;
-            };
-
-            box.fn.registerApp = function(app,config,permissions){
+            box.fn.registerApp = function(app,config){
                 if(!util.isFunction(app)) throw new Error("Your App must be a function to be called!");
                 if(!util.isString(config.name) || this.apps[config.name]) return false;
                 
                 var self = this,name = config.name,appd;
 
+                if(!util.has(config,'autoboot')) config.autoboot = true;
+
                 this.apps[name] = config;
-                // this.permissions[name] = {};
-                this.addPermissions(name,null,null);
-                
                 //initialize the app with arguments supplied and check for proper methods
+
                 try{
 
                   // appd = app.apply(null,config.args || []);
@@ -98,7 +88,7 @@ module.exports.Core = (function(toolstack){
                   //setup permissions,directory and set app as registed
                   if(config.main) key.root = Core.appDir.concat(config.main);
                   // key.permissions = permissions || {};
-                  if(permissions) this.mergePermissions(name,permissions);
+                  // if(permissions) this.permissions.push(name,permissions);
                   key.registered = true;
 
       
@@ -106,7 +96,6 @@ module.exports.Core = (function(toolstack){
                     name: key.name, 
                     key: key.channel, 
                     running: false, 
-                    permissions: function(){ return self.getPermissions(key.name); } ,
                     bootargs: (config.bootargs ? (util.isArray(config.bootargs) ? config.bootargs : [config.bootargs]) : []),
                   };
 
@@ -166,7 +155,7 @@ module.exports.Core = (function(toolstack){
             box.fn.boot = function(onComplete){
               util.eachAsync(this.apps,function(e,i,o,fn){
                   if(!e) return;
-                  try{ this.bootApp(i); }catch(e){ fn(e); }
+                  try{ if(e.autoboot) this.bootApp(i); }catch(e){ fn(e); }
                   fn(false)
               },function(err){
                 if(err) throw err;
@@ -278,14 +267,24 @@ module.exports.Core = (function(toolstack){
           // if(!appr.test(channel)) channel = 'app:'.concat(channel);
 
           //verify if channel does exists;
-          if(!helpers.exists.call(core.apps,channel) || !helpers.exists.call(core.apps,caller)) 
-            return promise.reject(new Error('Channel or Requester Not in Registery!')).promise(); 
+          if(!helpers.exists.call(core.apps,channel) || !helpers.exists.call(core.apps,caller)) {
+            promise.reject({ err: new Error('Channel or Requester Not in Registery!')});
+            return promise.promise();
+          }
           
-          var permObj = helpers.fetch.call(core.permissions,caller);
+          if(!core.pm.get(app,cable)){ 
+            promise.reject({ err: new Error('Permission Not Found!')});
+            return promise.promise(); 
+          }
 
-          if(!permObj) return false;
+          //if permission has no global in it then it will not be accessible to outside
+          // in global ,specific channels must be set to true to be usable also,else no
+          //request is made in messagepool
+          if(!core.pm.get(app,cable,command)){
+            promise.reject({ err:new Error('Access Not Allowed!')});
+            return promise.promise();
+          }
 
-          if(!(permObj[channel] && permObj[channel][command])) return promise.reject(new Error('Access Not Allowed!')).promise();
 
           args.push(promise);
 
@@ -297,7 +296,7 @@ module.exports.Core = (function(toolstack){
       };
 
       //allows outside controlled by permissions,access to request app state or service
-      facade.request = function(fn){
+      facade.request = function(){
         var args = util.arranize(arguments), 
             cable = 'global',
             app = args.shift(), 
@@ -307,14 +306,13 @@ module.exports.Core = (function(toolstack){
         if(!helpers.exists.call(core.apps,app)) return false;
         // if(!helpers.exists.call(core.loaded,channel)) return false;
 
-        var permObj = helpers.fetch.call(core.permissions,app);
-
-        if(!permObj) return promise.reject(new Error('Permission Not Found!')).promise();
+        if(!core.pm.get(app,cable)){ promise.reject({ err: new Error('Permission Not Found!')}); return promise.promise(); }
 
         //if permission has no global in it then it will not be accessible to outside
         // in global ,specific channels must be set to true to be usable also,else no
         //request is made in messagepool
-        if(!(permObj[cable] && permObj[cable][command])) return promise.reject(new Error('Access Not Allowed!')).promise();
+        if(!core.pm.get(app,cable,command)){ promise.reject({ err:new Error('Access Not Allowed!')}); return promise.promise(); }
+        
 
         args.push(promise);
 
@@ -327,14 +325,79 @@ module.exports.Core = (function(toolstack){
       };
 
  
-
       core.facade = facade;
       return true;
+    };
 
-      };
+
+    Core.Permissions = function(perm){
+        if(perm && !util.isObject(perm)) return;
+
+        var validate_rule = function ruleValidator(o){
+          if(!o || !util.isObject(o)) return null;
+          var stat = true;
+          util.each(o,function(){},null,function(e,i,o){
+            if(stat && !util.isBoolean(e)){ stat = false; return true; }
+            return false;
+          });
+          return stat;
+        };
+
+        var permissions = { rules: {} };
+
+        permissions.push = function pushPerm(app,perms){
+          if(!util.isObject(perms)) return null;
+          util.each(perms,function(e,i,o){
+            if(!util.isObject(e)) return;
+            this.add(app,i,e);
+          },this);
+        };
+
+        permissions.add = function addPerm(app,target,perms){
+          if(perm && !util.isObject(perm)) return false;
+          if(!helpers.exists.call(this.rules,app)) helpers.add.call(this.rules,app,{});
+          var o = helpers.fetch.call(this.rules,app);
+          if(target && perms){
+            if(validate_rule(perms)) helpers.add.call(o,target,perms);
+          }
+        };
+
+        permissions.get = function getPerm(app,target,event){
+          var o = helpers.fetch.call(this.rules,app);
+          if(!target) return o;
+          if(!event) return helpers.fetch.call(o,target);
+          return helpers.fetch.call(helpers.fetch.call(o,target),event);
+        };
+
+        permissions.approve = function modPerm(app,target,event){
+          return this.manage(app,target,event,true);
+        };
+
+        permissions.revoke = function revokePerm(app,target,event){
+          return this.manage(app,target,event,false);
+        };
+
+        permissions.remove = function removePerm(app,target){
+          if(!app) return;
+          if(!target) return helpers.remove.call(this.rules,app);
+          if(target) return helpers.remove.call(helpers.fetch.call(this.rules,app),target);
+        };
+
+        permissions.manage = function(app,target,event,state){
+          if(!app || !target || !util.isBoolean(state)) return null;
+          var o = helpers.fetch.call(this.rules,app);
+          if(!o) return null;
+          if(!event) return (util.each(helpers.fetch.call(o,target),function(e,i,o){ o[i] = state; },this));
+          if(event) return (helpers.fetch.call(o,target)[event] = state);
+          return;
+        };
+
+        if(perm) permissions.rules = perm;
+        return permissions;
+    };
       
-     Core.Modules = {};
+    Core.Modules = {};
 
-     return Core;
+    return Core;
 });
 
