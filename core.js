@@ -10,6 +10,8 @@ module.exports.Core = (function(toolstack){
     Promise = ts.Promise,
     eutil = ts.Errors;
 
+    ts.ASColors();
+
     module.exports.Core = Core;
 
     Core.gpid = util.guid();
@@ -198,7 +200,7 @@ module.exports.Core = (function(toolstack){
 
               loadd.running = true;
 
-              console.log('booting:',channel)
+              console.log('Booting:'.grey.bold,channel.toString().green);
               this.channels.notify.apply(this.channels,[channel,'bootup'].concat(loadd.bootargs));
               this.events.emit(channel.concat(':bootup'));
 
